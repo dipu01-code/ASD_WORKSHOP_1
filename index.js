@@ -1,72 +1,26 @@
 const express = require('express');
-const path = require('path');
-const fs = require('fs');
-const { timerify } = require('perf_hooks');
+const productRoutes = require('./src/routes/productRoutes');
 
 const app = express();
 const port = process.env.PORT || 3000;
-const filePath = path.join(__dirname, 'data.json');
-const cache = {};
-async function readData(){
-    try{
-        const data = await fs.promises.readFile(filePath, 'utf-8');
-        return JSON.parse(data);
-    }catch(err){
-        console.log(err.message)
-    }
-}
 
-async function readFileWithDelay(){
-    try{
-        await new Promise((resolve, reject) => {
-            setTimeout(resolve, 1500);
-        });
-        return await readData();
-    }catch(err){
-        console.log(err.message)
-    }
-}
+app.use(express.json());
 
 app.get('/', (request, response) => {
 	response.json({ message: 'API is running' });
 });
 
-app.get('/products', async (request, response) => {
-    try{
-        let key = request.url;
-        let value = cache[key];
+app.use('/products', productRoutes);
 
-        if (value)
-            return response.status(200).json(value);
-
-        let data = await readFileWithDelay();
-        cache[key] = data;
-        return response.status(200).json(data);
-    }catch(err){
-        console.log(err.message)
-    }
+app.use((error, request, response, next) => {
+    console.error(error.message);
+    response.status(500).json({ message: 'Internal server error' });
 });
 
-app.get('/products/:id', async (request, response) => {
-    try{
-        let key = request.url;
-        let value = cache[key];
+if (require.main === module) {
+    app.listen(port, () => {
+        console.log(`Welcome to the Server of Null Vector on port ${port}`);
+    });
+}
 
-        if (value)
-            return response.status(200).json(value);
-        
-        let data = await readFileWithDelay();
-        const id = Number(request.params.id);
-        let product = data.find(product => {
-            return product.id === id
-        });
-        cache[key] = product;
-        return response.status(200).json(product);
-    }catch(err){
-        console.log(err.message)
-    }
-});
-
-app.listen(port, () => {
-	console.log(`Welcome to the Server of Null Vector`);
-});
+module.exports = app;
